@@ -19,10 +19,10 @@ HEADERS = {'User-Agent': 'Mozilla/5.0'}
 class Webpage(object):
     def __init__(self, url):
         self.url = url
-        self._response = None
+        self.response = None
 
     def __str__(self):
-        return self._response
+        return str(self.response)
 
     def __enter__(self):
         self.open()
@@ -30,7 +30,6 @@ class Webpage(object):
 
     def __exit__(self, type, value, traceback):
         del self
-
 
     def _open(self, request, q):
         try:
@@ -59,15 +58,15 @@ class Webpage(object):
         if response is None:
             return False
 
-        self._response = str(response)
+        self.response = response
         return True
 
     def search(self, regex_term):
         try:
-            result = re.search(regex_term, self._response).group(0)
+            result = re.search(regex_term, str(self)).group(0)
         except AttributeError:
             return None
         return result
 
     def find_all(self, regex_term):
-        return re.findall(regex_term, self._response)
+        return re.findall(regex_term, str(self))

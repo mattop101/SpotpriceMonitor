@@ -1,9 +1,10 @@
+# Northcott Monitor
+# Written by Matthew Northcott
+# 20-08-2016
+# Python 3.4.3
+
 __author__ = "Matthew Northcott"
 
-# Spot Pricer
-# Created by Matthew Northcott
-# 27-02-2016
-# Python 3.4.3
 
 # IMPORTS
 import urllib.request, urllib.error
@@ -13,7 +14,7 @@ import time
 import queue
 
 # GLOBALS
-HEADERS = {'User-Agent': 'Mozilla/5.0'}
+HEADERS = { 'User-Agent': 'Mozilla/5.0' }
 
 # MAIN
 class Webpage(object):

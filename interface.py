@@ -41,6 +41,12 @@ class RPiInterface(object):
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
 
+        for id in GPIO_OUT.values():
+            GPIO.setup(id, GPIO.OUT)
+
+        for id in GPIO_IN.values():
+            GPIO.setup(id, GPIO.IN)
+
         self.is_green = False
         self.is_orange = False
         self.is_red = False
@@ -51,6 +57,7 @@ class RPiInterface(object):
         self.reset_all()
 
     def reset_all(self):
+        self.buzz()
         for id in GPIO_OUT.values():
             GPIO.output(id, OFF)
         self.is_green = False
@@ -59,19 +66,16 @@ class RPiInterface(object):
 
     def set_green(self):
         if self.is_green: return
-        self.buzz()
         self.reset_all()
         GPIO.output(ID_LED_GREEN, ON)
 
     def set_orange(self):
         if self.is_orange: return
-        self.buzz()
         self.reset_all()
         GPIO.output(ID_LED_ORANGE, ON)
 
     def set_red(self):
         if self.is_red: return
-        self.buzz()
         self.reset_all()
         self.is_red = True
         thr = threading.Thread(target=self._red_subroutine, args=(conf.BUZZER_DURATION))

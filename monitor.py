@@ -39,12 +39,8 @@ conf = SourceFileLoader("conf", FILE_CONFIG).load_module()
 class Monitor(object):
     def __init__(self, url):
         self.webpage = webpage.Webpage(url)
-        self._open_webpage(url)
+        self.webpage.open()
         self.update_values()
-
-    def _open_webpage(self, url):
-        success = self.webpage.open()
-
 
     def update_values(self):
         pass
@@ -192,8 +188,6 @@ class MonitorInterface(object):
 
 def main():
     mon = MonitorInterface()
-    mon.mainloop(0)
-
 
 if __name__ == '__main__':
     try:
@@ -201,4 +195,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     finally:
-        RPi.GPIO.cleanup()
+        GPIO.cleanup()

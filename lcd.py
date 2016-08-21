@@ -2,7 +2,7 @@ __author__ = "Matthew Northcott"
 
 # Spot Price Monitor
 # Created by Matthew Northcott
-# 29-06-2016
+# 21-08-2016
 # Python 3.4.3
 
 # IMPORTS

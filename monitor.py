@@ -11,10 +11,9 @@ import datetime
 import time
 import holidays
 import webpage
-# import RPi.GPIO
+import interface
+import RPi.GPIO as GPIO
 from importlib.machinery import SourceFileLoader
-
-
 
 
 # GLOBALS
@@ -24,8 +23,6 @@ WEBPAGE_WEATHER = "http://192.168.0.150/wx_data/data.txt"
 REGEX_SPOTPRICE = "(?<=ISL2201 \$)\d{1,4}\.\d{2}"
 REGEX_SPOTPRICE_TIME = "(?<=Last updated at )[\d\/]{10} [\d\:]{8}"
 
-# ON = GPIO.LOW
-# OFF = GPIO.HIGH
 LEFT = "left"
 CENTRE = "centre"
 RIGHT = "right"
@@ -84,18 +81,34 @@ class SpotpriceMonitor(Monitor):
         with open(filename, 'r') as cfg:
             data = [(datetime.time(int(h), int(m)), float(price)) for h, m, price in (line.split() for line in cfg)]
 
-        #
-        # data.sort(key=lambda x: x[0])
-        #
-        # network_charge = data[-1][1]
-        #
-        # for i in range(1, len(data)):
-        #     if data[i-1][0] <= self.time.time() < data[i][0]:
-        #         network_charge = data[i-1][1]
-        #         break
-        #
-        # self.network_charge = (self.spotprice / 10.0) + network_charge + conf.PROVIDER_CHARGE
+        data.sort(key=lambda x: x[0])
 
+        network_charge = data[-1][1]
+
+        for i in range(1, len(data)):
+            if data[i-1][0] <= self.time.time() < data[i][0]:
+                network_charge = data[i-1][1]
+                break
+
+        self.network_charge = (self.spotprice / 10.0) + network_charge + conf.PROVIDER_CHARGE
+
+    def status(self):
+        s = 0
+        if conf.PRICE_LIMIT_LOWER <= self.network_charge < conf.PRICE_LIMIT_UPPER:
+            s = 1
+        elif self.network_charge >= conf.PRICE_LIMIT_UPPER:
+            s = 2
+
+        return s
+
+    def time_string(self):
+        return self.time.strftime("%d %b %H:%M")
+
+    def price_string(self):
+        str_price = "${:.2f}".format(self.spotprice)
+        str_network = "{:.2f}c".format(self.network_charge)
+
+        return "{0:<10}{1:>10}".format(str_price, str_network)
 
 class WeatherMonitor(Monitor):
     def __init__(self):
@@ -116,32 +129,70 @@ class WeatherMonitor(Monitor):
 
         self.weather_data = weather_data
 
+    def temp_string(self):
+        temp = "{}C".format(self.temperature)
+        humidity = "{}%".format(self.humidity)
+        rainfall = "{}mm".format(self.wind_dir)
+
+        return "{:<6}  {:<4}  {:>6}".format(temp, humidity, rainfall)
+
+    def wind_string(self):
+        gust = "{}km/h".format(self.wind_speed_gust)
+        mean = "{}km/h".format(self.wind_speed_mean)
+
+        return "{:<7} {:<7}  {:>3}".format(gust, mean, self.wind_dir)
+
 
 class MonitorInterface(object):
     def __init__(self):
         self.weather_mon = WeatherMonitor()
         self.spotprice_mon = SpotpriceMonitor()
+        self.interface = interface.RPiInterface()
 
+        self.spotprice_mon.update_values()
+        self.weather_mon.update_values()
+
+        self.update_interface()
+
+    def update_interface(self):
+        # Update LED & buzzer
+        [self.interface.set_green, self.interface.set_orange, self.interface.set_red][self.spotprice_mon.status()]()
+
+        # Update LCD
+        self.interface.lcd_out(self.spotprice_mon.time_string(), 0, "centre")
+        self.interface.lcd_out(self.spotprice_mon.price_string(), 1, "centre")
+        self.interface.lcd_out(self.weather_mon.temp_string(), 2, "centre")
+        self.interface.lcd_out(self.weather_mon.wind_string(), 3, "centre")
 
     def mainloop(self, length):
         """ Create a loop in which to perform tasks, updating weather information at every 11-minute point and the
             spotprice every 5 minutes from start (possibly every 6 and 11 minute point)
         """
 
+        update = False
+
         while True:
             now = datetime.datetime.now()
 
-            if now.minute % 5 == 1:
-                self.spotprice_mon.update_values()
+            if now.second == 0:
+                if now.minute % 5 == 1:
+                    self.spotprice_mon.update_values()
+                    update = True
 
-            if now.minute % 10 == 1:
-                self.weather_mon.update_values()
+                if now.minute % 10 == 1:
+                    self.weather_mon.update_values()
+                    update = True
+
+            if update:
+                self.update_interface()
+                update = False
+
+            time.sleep(0.50)
 
 
 def main():
-    x = SpotpriceMonitor()
-    print(x.spotprice)
-    print(x.time)
+    mon = MonitorInterface()
+    mon.mainloop(0)
 
 
 if __name__ == '__main__':
@@ -150,4 +201,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     finally:
-        # RPi.GPIO.cleanup()
+        RPi.GPIO.cleanup()

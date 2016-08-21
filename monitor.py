@@ -23,6 +23,11 @@ WEBPAGE_WEATHER = "http://192.168.0.150/wx_data/data.txt"
 REGEX_SPOTPRICE = "(?<=ISL2201 \$)\d{1,4}\.\d{2}"
 REGEX_SPOTPRICE_TIME = "(?<=Last updated at )[\d\/]{10} [\d\:]{8}"
 
+STRING_TIME = "%d %b %H:%M"
+STRING_PRICE = "{0:<10}{1:>10}"
+STRING_TEMPERATURE = "{:<9}{:<5}{:>6}"
+STRING_WIND = "{:<9}{:<7}{:>4}"
+
 LEFT = "left"
 CENTRE = "centre"
 RIGHT = "right"
@@ -39,7 +44,6 @@ conf = SourceFileLoader("conf", FILE_CONFIG).load_module()
 class Monitor(object):
     def __init__(self, url):
         self.webpage = webpage.Webpage(url)
-        self.webpage.open()
         self.update_values()
 
     def update_values(self):
@@ -98,19 +102,22 @@ class SpotpriceMonitor(Monitor):
         return s
 
     def time_string(self):
-        return self.time.strftime("%d %b %H:%M")
+        return self.time.strftime(STRING_TIME)
 
     def price_string(self):
         str_price = "${:.2f}".format(self.spotprice)
         str_network = "{:.2f}c".format(self.network_charge)
 
-        return "{0:<10}{1:>10}".format(str_price, str_network)
+        return STRING_PRICE.format(str_price, str_network)
+
 
 class WeatherMonitor(Monitor):
     def __init__(self):
         super().__init__(WEBPAGE_WEATHER)
 
     def update_values(self):
+        if not self.webpage.open(): return
+
         weather_data = pickle.loads(self.webpage.response, encoding="latin1")
 
         self.temperature = weather_data[2]
@@ -130,13 +137,13 @@ class WeatherMonitor(Monitor):
         humidity = "{}%".format(self.humidity)
         rainfall = "{}mm".format(self.rainfall)
 
-        return "{:<6}  {:<4}  {:>6}".format(temp, humidity, rainfall)
+        return STRING_TEMPERATURE.format(temp, humidity, rainfall)
 
     def wind_string(self):
-        gust = "{}km/h".format(self.wind_speed_gust)
-        mean = "{}km/h".format(self.wind_speed_mean)
+        gust = "{}km/h".format(int(self.wind_speed_gust))
+        mean = "{}km/h".format(int(self.wind_speed_mean))
 
-        return "{:<7} {:<7} {:>3}".format(gust, mean, self.wind_dir)
+        return STRING_WIND.format(gust, mean, self.wind_dir)
 
 
 class MonitorInterface(object):
@@ -147,7 +154,6 @@ class MonitorInterface(object):
 
         self.spotprice_mon.update_values()
         self.weather_mon.update_values()
-
         self.update_interface()
 
     def update_interface(self):
@@ -160,7 +166,7 @@ class MonitorInterface(object):
         self.interface.lcd_out(self.weather_mon.temp_string(), 2, "centre")
         self.interface.lcd_out(self.weather_mon.wind_string(), 3, "centre")
 
-    def mainloop(self, length):
+    def mainloop(self):
         """ Create a loop in which to perform tasks, updating weather information at every 11-minute point and the
             spotprice every 5 minutes from start (possibly every 6 and 11 minute point)
         """
@@ -188,6 +194,7 @@ class MonitorInterface(object):
 
 def main():
     mon = MonitorInterface()
+    mon.mainloop()
 
 if __name__ == '__main__':
     try:

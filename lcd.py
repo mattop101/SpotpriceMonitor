@@ -47,7 +47,7 @@ class LCD(object):
         GPIO.setup(LCD_D6, GPIO.OUT) # DB6
         GPIO.setup(LCD_D7, GPIO.OUT) # DB7
         GPIO.setup(LED_ON, GPIO.OUT) # Backlight enable
-        
+
         # Initialise display
         self._byte(0x33, LCD_CMD) # 110011 Initialise
         self._byte(0x32, LCD_CMD) # 110010 Initialise
@@ -56,7 +56,6 @@ class LCD(object):
         self._byte(0x28, LCD_CMD) # 101000 Data length, number of lines, font size
         self._byte(0x01, LCD_CMD) # 000001 Clear display
         time.sleep(E_DELAY)
-
 
     def _byte(self, bits, mode):
         """Send byte to data pins. Mode is true for character, false for a command """

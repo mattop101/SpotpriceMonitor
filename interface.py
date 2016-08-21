@@ -28,7 +28,7 @@ ID_BUZZER = 22
 ID_LED_GREEN = 9
 ID_LED_ORANGE = 10
 ID_LED_RED = 11
-ID_SWITCH = 27
+ID_BUTTON = 27
 
 FILE_CONFIG = "/home/pi/SpotpriceMonitor/spotprice.cfg"
 
@@ -50,19 +50,23 @@ class RPiInterface(object):
         self.is_green = False
         self.is_orange = False
         self.is_red = False
+        self.is_red_buzzer = False
 
         self.lcd = LCD()
 
-        # Initialise all components to off
         self.reset_all()
 
+        self.listener_thread = threading.Thread(target=self._button_listener)
+        self.listener_thread.start()
+
     def reset_all(self):
-        self.buzz()
         for id in GPIO_OUT.values():
             GPIO.output(id, OFF)
         self.is_green = False
         self.is_orange = False
         self.is_red = False
+        self.is_red_buzzer = False
+        self.buzz()
 
     def set_green(self):
         if self.is_green: return
@@ -78,6 +82,7 @@ class RPiInterface(object):
         if self.is_red: return
         self.reset_all()
         self.is_red = True
+        self.is_red_buzzer = True
         thr = threading.Thread(target=self._red_subroutine, args=(conf.TIME_BUZZER_DURATION, ))
         thr.start()
 
@@ -85,7 +90,8 @@ class RPiInterface(object):
         while self.is_red:
             time.sleep(period)
             GPIO.output(ID_LED_RED, ON)
-            GPIO.output(ID_BUZZER, ON)
+            if self.is_red_buzzer:
+                GPIO.output(ID_BUZZER, ON)
             time.sleep(period)
             GPIO.output(ID_LED_RED, OFF)
             GPIO.output(ID_BUZZER, OFF)
@@ -98,6 +104,12 @@ class RPiInterface(object):
         GPIO.output(ID_BUZZER, ON)
         time.sleep(duration)
         GPIO.output(ID_BUZZER, OFF)
+
+    def _button_listener(self):
+        while True:
+            if GPIO.input(ID_BUTTON):
+                self.is_red_buzzer = False
+            time.sleep(0.1)
 
     def lcd_out(self, string, line, justify="left"):
         self.lcd.string_out(string, line, justify)

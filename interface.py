@@ -30,7 +30,7 @@ ID_LED_ORANGE = 10
 ID_LED_RED = 11
 ID_SWITCH = 27
 
-FILE_CONFIG = "E:/Programming/SpotpriceMonitor/spotprice.cfg"
+FILE_CONFIG = "/home/pi/SpotpriceMonitor/spotprice.cfg"
 
 
 # MAIN BODY

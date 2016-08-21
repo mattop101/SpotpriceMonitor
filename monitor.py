@@ -30,7 +30,7 @@ RIGHT = "right"
 GPIO_OUT = { "buzzer": 22, "led_green": 9, "led_orange": 10, "led_red": 11 }
 GPIO_IN = { "switch": 27 }
 
-FILE_CONFIG = "E:/Programming/SpotpriceMonitor/spotprice.cfg"
+FILE_CONFIG = "/home/pi/SpotpriceMonitor/spotprice.cfg"
 
 
 # MAIN BODY

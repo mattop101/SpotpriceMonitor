@@ -128,7 +128,7 @@ class WeatherMonitor(Monitor):
     def temp_string(self):
         temp = "{}C".format(self.temperature)
         humidity = "{}%".format(self.humidity)
-        rainfall = "{}mm".format(self.wind_dir)
+        rainfall = "{}mm".format(self.rainfall)
 
         return "{:<6}  {:<4}  {:>6}".format(temp, humidity, rainfall)
 
@@ -136,7 +136,7 @@ class WeatherMonitor(Monitor):
         gust = "{}km/h".format(self.wind_speed_gust)
         mean = "{}km/h".format(self.wind_speed_mean)
 
-        return "{:<7} {:<7}  {:>3}".format(gust, mean, self.wind_dir)
+        return "{:<7} {:<7} {:>3}".format(gust, mean, self.wind_dir)
 
 
 class MonitorInterface(object):
@@ -194,5 +194,3 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         pass
-    finally:
-        GPIO.cleanup()

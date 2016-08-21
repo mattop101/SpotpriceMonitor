@@ -78,7 +78,7 @@ class RPiInterface(object):
         if self.is_red: return
         self.reset_all()
         self.is_red = True
-        thr = threading.Thread(target=self._red_subroutine, args=(conf.BUZZER_DURATION))
+        thr = threading.Thread(target=self._red_subroutine, args=(conf.TIME_BUZZER_DURATION, ))
         thr.start()
 
     def _red_subroutine(self, period):
@@ -91,7 +91,7 @@ class RPiInterface(object):
             GPIO.output(ID_BUZZER, OFF)
 
     def buzz(self):
-        thr = threading.Thread(target=self._buzz, args=(conf.BUZZER_DURATION))
+        thr = threading.Thread(target=self._buzz, args=(conf.TIME_BUZZER_DURATION, ))
         thr.start()
 
     def _buzz(self, duration):

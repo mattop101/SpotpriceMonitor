@@ -71,11 +71,13 @@ class RPiInterface(object):
     def set_green(self):
         if self.is_green: return
         self.reset_all()
+        self.is_green = True
         GPIO.output(ID_LED_GREEN, ON)
 
     def set_orange(self):
         if self.is_orange: return
         self.reset_all()
+        self.is_orange = True
         GPIO.output(ID_LED_ORANGE, ON)
 
     def set_red(self):
@@ -109,7 +111,7 @@ class RPiInterface(object):
         while True:
             if GPIO.input(ID_BUTTON):
                 self.is_red_buzzer = False
-            time.sleep(0.1)
+            time.sleep(0.050)
 
     def lcd_out(self, string, line, justify="left"):
         self.lcd.string_out(string, line, justify)

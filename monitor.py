@@ -61,7 +61,7 @@ class SpotpriceMonitor(Monitor):
     def update_spotprice(self):
         if not self.webpage.open(): return
 
-        self.spotprice = float(self.webpage.search(REGEX_SPOTPRICE))
+        self.spotprice = float(self.webpage.search(REGEX_SPOTPRICE)) + conf.ADDITIONAL_SPOTPRICE
         self.time = datetime.datetime.strptime(self.webpage.search(REGEX_SPOTPRICE_TIME), "%d/%m/%Y %H:%M:%S")
 
     def update_network_charge(self):
@@ -90,7 +90,7 @@ class SpotpriceMonitor(Monitor):
                 network_charge = data[i-1][1]
                 break
 
-        self.network_charge = (self.spotprice / 10.0) + network_charge + conf.PROVIDER_CHARGE
+        self.network_charge = (self.spotprice / 10.0) + network_charge + conf.PROVIDER_CHARGE + conf.ADDITIONAL_NETWORK
 
     def status(self):
         s = 0
@@ -167,9 +167,6 @@ class MonitorInterface(object):
         self.interface.lcd_out(self.weather_mon.wind_string(), 3, "centre")
 
     def mainloop(self):
-        """ Create a loop in which to perform tasks, updating weather information at every 11-minute point and the
-            spotprice every 5 minutes from start (possibly every 6 and 11 minute point)
-        """
 
         update = False
 
@@ -189,7 +186,7 @@ class MonitorInterface(object):
                 self.update_interface()
                 update = False
 
-            time.sleep(0.50)
+            time.sleep(0.30)
 
 
 def main():
@@ -197,7 +194,4 @@ def main():
     mon.mainloop()
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        pass
+    main()

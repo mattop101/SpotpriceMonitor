@@ -23,6 +23,8 @@ WEBPAGE_WEATHER = "http://192.168.0.150/wx_data/data.txt"
 REGEX_SPOTPRICE = "(?<=ISL2201 \$)\d{1,4}\.\d{2}"
 REGEX_SPOTPRICE_TIME = "(?<=Last updated at )[\d\/]{10} [\d\:]{8}"
 
+WEATHER_LIST_LEN = 11
+
 STRING_TIME = "%d %b %H:%M"
 STRING_PRICE = "{0:<10}{1:>10}"
 STRING_TEMPERATURE = "{:<9}{:<5}{:>6}"
@@ -120,15 +122,10 @@ class WeatherMonitor(Monitor):
 
         weather_data = pickle.loads(self.webpage.response, encoding="latin1")
 
-        self.temperature = weather_data[2]
-        self.wind_dir = weather_data[3]
-        self.rainfall = weather_data[4]
-        self.wind_speed_gust = weather_data[5]
-        self.wind_speed_mean = weather_data[6]
-        self.wind_run = weather_data[7]
-        self.humidity = weather_data[8]
-        self.barometer = weather_data[9]
-        self.dewpoint = weather_data[10]
+        if len(weather_data) != WEATHER_LIST_LEN: return
+
+        _, _, self.temperature, self.wind_dir, self.rainfall, self.wind_speed_gust, self.wind_speed_mean, \
+        self.wind_run, self.humidity, self.barometer, self.dewpoint = weather_data
 
         self.weather_data = weather_data
 

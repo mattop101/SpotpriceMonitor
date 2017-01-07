@@ -111,7 +111,7 @@ class RPiInterface(object):
         while True:
             if GPIO.input(ID_BUTTON):
                 self.is_red_buzzer = False
-            time.sleep(0.050)
+            time.sleep(0.10)
 
     def lcd_out(self, string, line, justify="left"):
         self.lcd.string_out(string, line, justify)

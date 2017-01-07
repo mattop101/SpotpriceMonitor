@@ -12,7 +12,6 @@ import time
 import holidays
 import webpage
 import interface
-import RPi.GPIO as GPIO
 from importlib.machinery import SourceFileLoader
 
 
@@ -46,6 +45,7 @@ conf = SourceFileLoader("conf", FILE_CONFIG).load_module()
 class Monitor(object):
     def __init__(self, url):
         self.webpage = webpage.Webpage(url)
+        self.has_data = False
         self.update_values()
 
     def update_values(self):
@@ -65,6 +65,7 @@ class SpotpriceMonitor(Monitor):
 
         self.spotprice = float(self.webpage.search(REGEX_SPOTPRICE)) + conf.ADDITIONAL_SPOTPRICE
         self.time = datetime.datetime.strptime(self.webpage.search(REGEX_SPOTPRICE_TIME), "%d/%m/%Y %H:%M:%S")
+        self.has_data = True
 
     def update_network_charge(self):
         if self.spotprice == 0: return
@@ -129,6 +130,8 @@ class WeatherMonitor(Monitor):
 
         self.weather_data = weather_data
 
+        self.has_data = True
+
     def temp_string(self):
         temp = "{}C".format(self.temperature)
         humidity = "{}%".format(self.humidity)
@@ -157,11 +160,24 @@ class MonitorInterface(object):
         # Update LED & buzzer
         [self.interface.set_green, self.interface.set_orange, self.interface.set_red][self.spotprice_mon.status()]()
 
+        spotprice_top = "No spotprice data"
+        spotprice_bottom = ""
+        weather_top = "No weather data"
+        weather_bottom = ""
+
         # Update LCD
-        self.interface.lcd_out(self.spotprice_mon.time_string(), 0, "centre")
-        self.interface.lcd_out(self.spotprice_mon.price_string(), 1, "centre")
-        self.interface.lcd_out(self.weather_mon.temp_string(), 2, "centre")
-        self.interface.lcd_out(self.weather_mon.wind_string(), 3, "centre")
+        if self.spotprice_mon.has_data:
+            spotprice_top = self.spotprice_mon.time_string()
+            spotprice_bottom = self.spotprice_mon.price_string()
+
+        if self.weather_mon.has_data:
+            weather_top = self.weather_mon.temp_string()
+            weather_bottom = self.weather_mon.wind_string()
+
+        self.interface.lcd_out(spotprice_top, 0, "centre")
+        self.interface.lcd_out(spotprice_bottom, 1, "centre")
+        self.interface.lcd_out(weather_top, 2, "centre")
+        self.interface.lcd_out(weather_bottom, 3, "centre")
 
     def mainloop(self):
 
@@ -171,11 +187,11 @@ class MonitorInterface(object):
             now = datetime.datetime.now()
 
             if now.second == 0:
-                if now.minute % 5 == 1:
+                if now.minute % 5 == 0:
                     self.spotprice_mon.update_values()
                     update = True
 
-                if now.minute % 10 == 1:
+                if now.minute % 10 == 0:
                     self.weather_mon.update_values()
                     update = True
 
@@ -183,7 +199,7 @@ class MonitorInterface(object):
                 self.update_interface()
                 update = False
 
-            time.sleep(0.30)
+            time.sleep(0.90)
 
 
 def main():

@@ -9,9 +9,6 @@ __author__ = "Matthew Northcott"
 # IMPORTS
 import urllib.request, urllib.error
 import re
-import threading
-import time
-import queue
 
 # GLOBALS
 HEADERS = { 'User-Agent': 'Mozilla/5.0' }
@@ -32,30 +29,13 @@ class Webpage(object):
     def __exit__(self, type, value, traceback):
         del self
 
-    def _open(self, request, q):
+    def open(self):
         try:
+            request = urllib.request.Request(self.url, headers=HEADERS)
             response = urllib.request.urlopen(request).read()
         except urllib.error.URLError:
             response = None
-        q.put(response)
 
-    def open(self, timeout=10.0):
-        q = queue.Queue()
-        request = urllib.request.Request(self.url, headers=HEADERS)
-
-        thr = threading.Thread(target=self._open, args=(request, q))
-        thr.start()
-
-        t = 0
-        while t < timeout and thr.is_alive():
-            time.sleep(0.10)
-            t += 0.10
-
-        if thr.is_alive():
-            del thr
-            return False
-
-        response = q.get()
         if response is None:
             return False
 

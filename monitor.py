@@ -140,8 +140,8 @@ class WeatherMonitor(Monitor):
         return STRING_TEMPERATURE.format(temp, humidity, rainfall)
 
     def wind_string(self):
-        gust = "{}km/h".format(int(self.wind_speed_gust))
-        mean = "{}km/h".format(int(self.wind_speed_mean))
+        gust = "{}km/h".format(round(self.wind_speed_gust))
+        mean = "{}km/h".format(round(self.wind_speed_mean))
 
         return STRING_WIND.format(gust, mean, self.wind_dir)
 
@@ -187,11 +187,11 @@ class MonitorInterface(object):
             now = datetime.datetime.now()
 
             if now.second == 0:
-                if now.minute % 5 == 0:
+                if now.minute % 5 == 1:
                     self.spotprice_mon.update_values()
                     update = True
 
-                if now.minute % 10 == 0:
+                if now.minute % 10 == 1:
                     self.weather_mon.update_values()
                     update = True
 

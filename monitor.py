@@ -9,6 +9,7 @@ __author__ = "Matthew Northcott"
 import pickle
 import datetime
 import time
+import json
 import holidays
 import webpage
 import interface
@@ -16,11 +17,10 @@ from importlib.machinery import SourceFileLoader
 
 
 # GLOBALS
-WEBPAGE_SPOTPRICE = "http://electricityinfo.co.nz/comitFta/ftapage.main"
+WEBPAGE_SPOTPRICE = "https://www1.electricityinfo.co.nz/"
 WEBPAGE_WEATHER = "http://192.168.0.150/wx_data/data.txt"
 
-REGEX_SPOTPRICE = "(?<=ISL2201 \$)\d{1,4}\.\d{2}"
-REGEX_SPOTPRICE_TIME = "(?<=Last updated at )[\d\/]{10} [\d\:]{8}"
+REGEX_SPOTPRICE = "\{[^\{]+Islington\"\}"
 
 WEATHER_LIST_LEN = 11
 
@@ -63,8 +63,9 @@ class SpotpriceMonitor(Monitor):
     def update_spotprice(self):
         if not self.webpage.open(): return
 
-        self.spotprice = float(self.webpage.search(REGEX_SPOTPRICE)) + conf.ADDITIONAL_SPOTPRICE
-        self.time = datetime.datetime.strptime(self.webpage.search(REGEX_SPOTPRICE_TIME), "%d/%m/%Y %H:%M:%S")
+        data = json.loads(self.webpage.search(REGEX_SPOTPRICE))
+        self.spotprice = data["price"] + conf.ADDITIONAL_SPOTPRICE
+        self.time = datetime.datetime.strptime(data["run_time"], "%Y-%m-%d %H:%M:%S NZST")
         self.has_data = True
 
     def update_network_charge(self):
@@ -74,6 +75,9 @@ class SpotpriceMonitor(Monitor):
         is_weekend = weekday > 4
         is_holiday = self.time in holidays.NewZealand()
         is_winter = 4 < self.time.month < 9
+
+        if not conf.HOLIDAY_RATES:
+            is_holiday = False
 
         filename = conf.FILE_NETWORK_SUMMER
         if is_winter:

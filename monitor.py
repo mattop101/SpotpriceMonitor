@@ -48,6 +48,9 @@ class Monitor(object):
         self.weather = weather.WeatherData()
         self.spot_price = flickuser.FlickUser(conf.FLICK_USERNAME, conf.FLICK_PASSWORD)
 
+        self.weather.update()
+        self.spot_price.update()
+
     def update_interface(self):
         # Check button input
         if self.interface.input_button():

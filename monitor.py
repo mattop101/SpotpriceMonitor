@@ -53,6 +53,11 @@ class Monitor(object):
         self.update_spot_price()
 
     def update_interface(self):
+        # Reset all
+        self.interface.output_led(interface.LED_GREEN, False)
+        self.interface.output_led(interface.LED_ORANGE, False)
+        self.interface.output_led(interface.LED_RED, False)
+
         # Check button input
         if self.interface.input_button():
             self.enable_buzzer = not self.enable_buzzer

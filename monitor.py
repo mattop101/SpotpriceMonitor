@@ -75,17 +75,16 @@ class Monitor(object):
     def update_spot_price(self):
         self.spot_price.update()
 
-        l0 = self.now.strftime(STRING_TIME)
-
         str_price = "{:.2f}c".format(self.spot_price.price)
         str_spot_price = "{:.2f}c".format(self.spot_price.spot_price)
         l1 = STRING_PRICE.format(str_spot_price, str_price)
 
-        self.interface.lcd_out(l0, 0, CENTRE)
         self.interface.lcd_out(l1, 1, CENTRE)
 
     def update_weather(self):
         self.weather.update()
+
+        l0 = self.now.strftime(STRING_TIME)
 
         str_temp = "{}C".format(self.weather.temperature)
         str_humidity = "{}%".format(self.weather.humidity)
@@ -97,6 +96,7 @@ class Monitor(object):
         str_wind_dir = self.weather.wind_dir
         l3 = STRING_WIND.format(str_wind_gust, str_wind_mean, str_wind_dir)
 
+        self.interface.lcd_out(l0, 0, CENTRE)
         self.interface.lcd_out(l2, 2, CENTRE)
         self.interface.lcd_out(l3, 3, CENTRE)
 

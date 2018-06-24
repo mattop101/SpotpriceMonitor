@@ -1,29 +1,19 @@
 # Northcott Monitor
 # Written by Matthew Northcott
-# 20-08-2016
-# Python 3.4.3
+# 24-06-2018
+# Python 3.6
 
 __author__ = "Matthew Northcott"
 
 # IMPORTS
-import pickle
+import interface
+import weather
+import flickuser
 import datetime
 import time
-import json
-import holidays
-import webpage
-import interface
 from importlib.machinery import SourceFileLoader
 
-
 # GLOBALS
-WEBPAGE_SPOTPRICE = "https://www1.electricityinfo.co.nz/"
-WEBPAGE_WEATHER = "http://192.168.0.150/wx_data/data.txt"
-
-REGEX_SPOTPRICE = "\{[^\{]+Islington\"\}"
-
-WEATHER_LIST_LEN = 11
-
 STRING_TIME = "%d %b %H:%M"
 STRING_PRICE = "{0:<10}{1:>10}"
 STRING_TEMPERATURE = "{:<9}{:<5}{:>6}"
@@ -33,181 +23,95 @@ LEFT = "left"
 CENTRE = "centre"
 RIGHT = "right"
 
-GPIO_OUT = { "buzzer": 22, "led_green": 9, "led_orange": 10, "led_red": 11 }
-GPIO_IN = { "switch": 27 }
-
 FILE_CONFIG = "/home/pi/SpotpriceMonitor/spotprice.cfg"
 
+UPDATE_FREQUENCY = 50
 
 # MAIN BODY
 conf = SourceFileLoader("conf", FILE_CONFIG).load_module()
 
+
 class Monitor(object):
-    def __init__(self, url):
-        self.webpage = webpage.Webpage(url)
-        self.has_data = False
-        self.update_values()
+    interface = None
+    weather = None
+    spot_price = None
 
-    def update_values(self):
-        pass
+    enable_buzzer = True
+    led_state = False
 
+    now = None
+    next_update = 0
+    is_running = True
 
-class SpotpriceMonitor(Monitor):
     def __init__(self):
-        super().__init__(WEBPAGE_SPOTPRICE)
-
-    def update_values(self):
-        self.update_spotprice()
-        self.update_network_charge()
-
-    def update_spotprice(self):
-        if not self.webpage.open(): return
-
-        data = json.loads(self.webpage.search(REGEX_SPOTPRICE))
-        self.spotprice = data["price"] + conf.ADDITIONAL_SPOTPRICE
-        self.time = datetime.datetime.strptime(data["run_time"], "%Y-%m-%d %H:%M:%S NZST")
-        self.has_data = True
-
-    def update_network_charge(self):
-        if self.spotprice == 0: return
-
-        weekday = datetime.datetime.weekday(self.time)
-        is_weekend = weekday > 4
-        is_holiday = self.time in holidays.NewZealand()
-        is_winter = 4 < self.time.month < 9
-
-        if not conf.HOLIDAY_RATES:
-            is_holiday = False
-
-        filename = conf.FILE_NETWORK_SUMMER
-        if is_winter:
-            filename = conf.FILE_NETWORK_WINTER
-        if is_weekend or is_holiday:
-            filename = conf.FILE_NETWORK_WEEKEND
-
-        with open(filename, 'r') as cfg:
-            data = [(datetime.time(int(h), int(m)), float(price)) for h, m, price in (line.split() for line in cfg)]
-
-        data.sort(key=lambda x: x[0])
-
-        network_charge = data[-1][1]
-
-        for i in range(1, len(data)):
-            if data[i-1][0] <= self.time.time() < data[i][0]:
-                network_charge = data[i-1][1]
-                break
-
-        self.network_charge = (self.spotprice / 10.0) + network_charge + conf.PROVIDER_CHARGE + conf.ADDITIONAL_NETWORK
-
-    def status(self):
-        s = 0
-        if conf.PRICE_LIMIT_LOWER <= self.network_charge < conf.PRICE_LIMIT_UPPER:
-            s = 1
-        elif self.network_charge >= conf.PRICE_LIMIT_UPPER:
-            s = 2
-
-        return s
-
-    def time_string(self):
-        return self.time.strftime(STRING_TIME)
-
-    def price_string(self):
-        str_price = "${:.2f}".format(self.spotprice)
-        str_network = "{:.2f}c".format(self.network_charge)
-
-        return STRING_PRICE.format(str_price, str_network)
-
-
-class WeatherMonitor(Monitor):
-    def __init__(self):
-        super().__init__(WEBPAGE_WEATHER)
-
-    def update_values(self):
-        if not self.webpage.open(): return
-
-        weather_data = pickle.loads(self.webpage.response, encoding="latin1")
-
-        if len(weather_data) != WEATHER_LIST_LEN: return
-
-        _, _, self.temperature, self.wind_dir, self.rainfall, self.wind_speed_gust, self.wind_speed_mean, \
-        self.wind_run, self.humidity, self.barometer, self.dewpoint = weather_data
-
-        self.weather_data = weather_data
-
-        self.has_data = True
-
-    def temp_string(self):
-        temp = "{}C".format(self.temperature)
-        humidity = "{}%".format(self.humidity)
-        rainfall = "{}mm".format(self.rainfall)
-
-        return STRING_TEMPERATURE.format(temp, humidity, rainfall)
-
-    def wind_string(self):
-        gust = "{}km/h".format(round(self.wind_speed_gust))
-        mean = "{}km/h".format(round(self.wind_speed_mean))
-
-        return STRING_WIND.format(gust, mean, self.wind_dir)
-
-
-class MonitorInterface(object):
-    def __init__(self):
-        self.weather_mon = WeatherMonitor()
-        self.spotprice_mon = SpotpriceMonitor()
         self.interface = interface.RPiInterface()
-
-        self.spotprice_mon.update_values()
-        self.weather_mon.update_values()
-        self.update_interface()
+        self.weather = weather.WeatherData()
+        self.spot_price = flickuser.FlickUser(conf.FLICK_USERNAME, conf.FLICK_PASSWORD)
 
     def update_interface(self):
-        # Update LED & buzzer
-        [self.interface.set_green, self.interface.set_orange, self.interface.set_red][self.spotprice_mon.status()]()
+        # Check button input
+        if self.interface.input_button():
+            self.enable_buzzer = not self.enable_buzzer
 
-        spotprice_top = "No spotprice data"
-        spotprice_bottom = ""
-        weather_top = "No weather data"
-        weather_bottom = ""
+        # Output LED
+        if self.spot_price.price >= conf.PRICE_LIMIT_UPPER:
+            self.interface.output_led(interface.LED_RED, self.led_state)
+            self.interface.output_buzzer(self.led_state and self.enable_buzzer)
+            self.led_state = not self.led_state
+        else:
+            self.led_state = True
+            self.interface.output_led(interface.LED_GREEN if self.spot_price < conf.PRICE_LIMIT_UPPER
+                                      else interface.LED_ORANGE, self.led_state)
 
-        # Update LCD
-        if self.spotprice_mon.has_data:
-            spotprice_top = self.spotprice_mon.time_string()
-            spotprice_bottom = self.spotprice_mon.price_string()
+    def update_spot_price(self):
+        self.spot_price.update()
 
-        if self.weather_mon.has_data:
-            weather_top = self.weather_mon.temp_string()
-            weather_bottom = self.weather_mon.wind_string()
+        l0 = self.now.strftime(STRING_TIME)
 
-        self.interface.lcd_out(spotprice_top, 0, "centre")
-        self.interface.lcd_out(spotprice_bottom, 1, "centre")
-        self.interface.lcd_out(weather_top, 2, "centre")
-        self.interface.lcd_out(weather_bottom, 3, "centre")
+        str_price = "{:.2f}c/kWH".format(self.spot_price.price)
+        str_spot_price = "{:.2f}c/kWH".format(self.spot_price.spot_price)
+        l1 = STRING_PRICE.format(str_price, str_spot_price)
+
+        self.interface.lcd_out(l0, 0, CENTRE)
+        self.interface.lcd_out(l1, 1, CENTRE)
+
+    def update_weather(self):
+        self.weather.update()
+
+        str_temp = "{}C".format(self.weather.temperature)
+        str_humidity = "{}%".format(self.weather.humidity)
+        str_rainfall = "{}mm".format(self.weather.rainfall)
+        l2 = STRING_TEMPERATURE.format(str_temp, str_humidity, str_rainfall)
+
+        str_wind_gust = "{}km/h".format(round(self.weather.wind_speed_gust))
+        str_wind_mean = "{}km/h".format(round(self.weather.wind_speed_mean))
+        str_wind_dir = self.weather.wind_dir
+        l3 = STRING_WIND.format(str_wind_gust, str_wind_mean, str_wind_dir)
+
+        self.interface.lcd_out(l2, 2, CENTRE)
+        self.interface.lcd_out(l3, 3, CENTRE)
+
 
     def mainloop(self):
+        while self.is_running:
+            self.now = datetime.datetime.now()
+            t = time.time()
 
-        update = False
-
-        while True:
-            now = datetime.datetime.now()
-
-            if now.second == 0:
-                if now.minute % 5 == 1:
-                    self.spotprice_mon.update_values()
-                    update = True
-
-                if now.minute % 10 == 1:
-                    self.weather_mon.update_values()
-                    update = True
-
-            if update:
+            if t > self.next_update:
                 self.update_interface()
-                update = False
+                self.next_update = t + conf.ALERT_DURATION
 
-            time.sleep(0.90)
+            elif self.now >= self.weather.next_update:
+                self.update_weather()
+
+            elif self.now >= self.spot_price.next_update:
+                self.update_spot_price()
+
+            time.sleep(1 / UPDATE_FREQUENCY)
 
 
 def main():
-    mon = MonitorInterface()
+    mon = Monitor()
     mon.mainloop()
 
 if __name__ == '__main__':

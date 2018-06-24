@@ -47,9 +47,10 @@ class Monitor(object):
         self.interface = interface.RPiInterface()
         self.weather = weather.WeatherData()
         self.spot_price = flickuser.FlickUser(conf.FLICK_USERNAME, conf.FLICK_PASSWORD)
+        self.now = datetime.datetime.now()
 
-        self.weather.update()
-        self.spot_price.update()
+        self.update_weather()
+        self.update_spot_price()
 
     def update_interface(self):
         # Check button input
@@ -71,9 +72,9 @@ class Monitor(object):
 
         l0 = self.now.strftime(STRING_TIME)
 
-        str_price = "{:.2f}c/kWH".format(self.spot_price.price)
-        str_spot_price = "{:.2f}c/kWH".format(self.spot_price.spot_price)
-        l1 = STRING_PRICE.format(str_price, str_spot_price)
+        str_price = "{:.2f}c".format(self.spot_price.price)
+        str_spot_price = "{:.2f}c".format(self.spot_price.spot_price)
+        l1 = STRING_PRICE.format(str_spot_price, str_price)
 
         self.interface.lcd_out(l0, 0, CENTRE)
         self.interface.lcd_out(l1, 1, CENTRE)

@@ -46,10 +46,10 @@ class RPiInterface(object):
         return GPIO.input(ID_BUTTON)
 
     def output_led(self, led, state):
-        GPIO.output(LED_MAP[led], state)
+        GPIO.output(LED_MAP[led], GPIO.HIGH if state else GPIO.LOW)
 
     def output_buzzer(self, state):
-        GPIO.output(ID_BUZZER, state)
+        GPIO.output(ID_BUZZER, GPIO.HIGH if state else GPIO.LOW)
 
     def lcd_out(self, string, line, justify=LEFT):
         self.lcd.string_out(string, line, justify)

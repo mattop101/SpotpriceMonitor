@@ -69,7 +69,8 @@ class Monitor(object):
             self.led_state = not self.led_state
         else:
             self.led_state = True
-            self.interface.output_led(interface.LED_GREEN if self.spot_price.price < conf.PRICE_LIMIT_UPPER
+
+            self.interface.output_led(interface.LED_GREEN if self.spot_price.price < conf.PRICE_LIMIT_LOWER
                                       else interface.LED_ORANGE, self.led_state)
 
     def update_spot_price(self):

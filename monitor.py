@@ -111,10 +111,10 @@ class Monitor(object):
                 self.update_interface()
                 self.next_update = t + conf.ALERT_DURATION
 
-            elif self.now >= self.weather.next_update:
+            elif self.now > self.weather.next_update:
                 self.update_weather()
 
-            elif self.now >= self.spot_price.next_update:
+            elif self.now > self.spot_price.next_update:
                 self.update_spot_price()
 
             time.sleep(1 / UPDATE_FREQUENCY)

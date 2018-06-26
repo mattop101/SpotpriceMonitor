@@ -39,17 +39,20 @@ class FlickUser(object):
             'password': self.password
         }
 
-        request_token = Request(URL_TOKEN, urlencode(post_fields).encode())
-        tokens = json.loads(urlopen(request_token).read().decode())
+        try:
+            request_token = Request(URL_TOKEN, urlencode(post_fields).encode())
+            tokens = json.loads(urlopen(request_token).read().decode())
 
-        request = Request(URL_PRICE, headers={'Authorization': 'Bearer ' + tokens['id_token']})
-        response = urlopen(request).read().decode()
-        result = json.loads(response)
+            request = Request(URL_PRICE, headers={'Authorization': 'Bearer ' + tokens['id_token']})
+            response = urlopen(request).read().decode()
+            result = json.loads(response)
 
-        components = result['needle']['components']
+            components = result['needle']['components']
 
-        self.price = float(result['needle']['price'])
-        self.spot_price = sum(float(c['value']) for c in components if c['charge_method'] == 'spot_price')
+            self.price = float(result['needle']['price'])
+            self.spot_price = sum(float(c['value']) for c in components if c['charge_method'] == 'spot_price')
+        except:
+            return
 
     """Updates price fields and determines next update time"""
     def update(self):

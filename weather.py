@@ -33,8 +33,9 @@ class WeatherData(object):
 
             _, _, self.temperature, self.wind_dir, self.rainfall, self.wind_speed_gust, self.wind_speed_mean, \
             self.wind_run, self.humidity, self.barometer, self.dew_point = result
-        except:
-            return
+        except Exception as e:
+            with open('error.log', 'a') as f:
+                f.write('\n' + str(e))
 
     def update(self):
         self.get_weather()

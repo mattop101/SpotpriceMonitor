@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 import json
 import datetime
+import pickle
 
 # GLOBALS
 URL_TOKEN = 'https://api.flick.energy/identity/oauth/token'
@@ -51,8 +52,9 @@ class FlickUser(object):
 
             self.price = float(result['needle']['price'])
             self.spot_price = sum(float(c['value']) for c in components if c['charge_method'] == 'spot_price')
-        except:
-            return
+        except Exception as e:
+            with open('error.log', 'a') as f:
+                f.write('\n' + str(e))
 
     """Updates price fields and determines next update time"""
     def update(self):

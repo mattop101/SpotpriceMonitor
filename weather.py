@@ -43,6 +43,6 @@ class WeatherData(object):
         now = datetime.datetime.now()
 
         if now.minute >= 51:
-            self.next_update = now.replace(hour=now.hour + 1, minute=1, second=0, microsecond=0)
+            self.next_update = now.replace( minute=1, second=0, microsecond=0) + datetime.timedelta(hours=1)
         else:
             self.next_update = now.replace(minute=now.minute // 10 * 10 + 11 , second=0, microsecond=0)

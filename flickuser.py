@@ -63,6 +63,6 @@ class FlickUser(object):
         now = datetime.datetime.now()
 
         if now.minute >= 31:
-            self.next_update = now.replace(hour=now.hour + 1, minute=1, second=0, microsecond=0)
+            self.next_update = now.replace(minute=1, second=0, microsecond=0) + datetime.timedelta(hours=1)
         else:
             self.next_update = now.replace(minute=31, second=0, microsecond=0)

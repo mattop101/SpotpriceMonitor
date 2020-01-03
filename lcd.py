@@ -1,11 +1,3 @@
-# Northcott Monitor
-# Written by Matthew Northcott
-# 20-08-2016
-# Python 3.4.3
-
-__author__ = "Matthew Northcott"
-
-
 # IMPORTS
 import RPi.GPIO as GPIO
 import time

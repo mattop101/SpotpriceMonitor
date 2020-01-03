@@ -1,128 +1,164 @@
-# Northcott Monitor
 # Written by Matthew Northcott
-# 24-06-2018
-# Python 3.6
+# 30 December 2019
+
 
 __author__ = "Matthew Northcott"
 
+
 # IMPORTS
-import interface
-import weather
-import flickuser
-import datetime
 import time
+import threading
+import schedule
+
 from importlib.machinery import SourceFileLoader
 
+import RPi.GPIO as GPIO
+import lcd
+import weather
+import flickuser
+
 # GLOBALS
-STRING_TIME = "%d %b %H:%M"
-STRING_PRICE = "{0:<10}{1:>10}"
-STRING_TEMPERATURE = "{:<9}{:<5}{:>6}"
-STRING_WIND = "{:<9}{:<7}{:>4}"
+GPIO_BUZZER = 22
+GPIO_LED_GREEN = 9
+GPIO_LED_ORANGE = 10
+GPIO_LED_RED = 11
+GPIO_BUTTON = 27
 
-LEFT = "left"
-CENTRE = "centre"
-RIGHT = "right"
-
-FILE_CONFIG = "/home/pi/SpotpriceMonitor/spotprice.cfg"
-
-UPDATE_FREQUENCY = 50
+TIME_FORMAT = "%d %b %H:%M"
+FILE_CONFIG = "spotprice.cfg"
 
 # MAIN BODY
 conf = SourceFileLoader("conf", FILE_CONFIG).load_module()
 
 
 class Monitor(object):
-    interface = None
-    weather = None
-    spot_price = None
-
     enable_buzzer = True
     led_state = False
-
-    now = None
-    next_update = 0
-    is_running = True
+    running = False
 
     def __init__(self):
-        self.interface = interface.RPiInterface()
+        # GPIO initialisation
+        GPIO.setmode(rpi.BCM)
+        GPIO.setwarnings(False)
+        GPIO.setup(GPIO_BUZZER, GPIO.OUT)
+        GPIO.setup(GPIO_LED_GREEN, GPIO.OUT)
+        GPIO.setup(GPIO_LED_ORANGE, GPIO.OUT)
+        GPIO.setup(GPIO_LED_RED, GPIO.OUT)
+        GPIO.setup(GPIO_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
+        self.startup()
+        GPIO.add_event_detect(GPIO_BUTTON, GPIO.RISING, callback=self.toggle_buzzer, bouncetime=200)
+
+        self.lcd = lcd.LCD()
         self.weather = weather.WeatherData()
-        self.spot_price = flickuser.FlickUser(conf.FLICK_USERNAME, conf.FLICK_PASSWORD)
-        self.now = datetime.datetime.now()
+        self.flick = flickuser.FlickUser(conf.FLICK_USERNAME, conf.FLICK_PASSWORD)
 
-        self.update_weather()
-        self.update_spot_price()
+        schedule.every().hour.at(":01").do(self.update)
+        schedule.every().hour.at(":11").do(self.update)
+        schedule.every().hour.at(":21").do(self.update)
+        schedule.every().hour.at(":31").do(self.update)
+        schedule.every().hour.at(":41").do(self.update)
+        schedule.every().hour.at(":51").do(self.update)
+    
+    def startup(self):
+        self.lcd.string_out("Spotprice Monitor", 1, justify="center")
+        self.lcd.string_out("v3 (Dec 2019)", 2, justify="center")
 
-    def update_interface(self):
-        # Reset all
-        self.interface.output_led(interface.LED_GREEN, False)
-        self.interface.output_led(interface.LED_ORANGE, False)
-        self.interface.output_led(interface.LED_RED, False)
+        self.reset_leds()
 
-        # Check button input
-        if self.interface.input_button():
-            self.enable_buzzer = not self.enable_buzzer
+        for _ in range(3):
+            GPIO.output(GPIO_LED_GREEN, GPIO.LOW)
+            time.sleep(1)
+            GPIO.output(GPIO_LED_GREEN, GPIO.HIGH)
+            GPIO.output(GPIO_LED_ORANGE, GPIO.LOW)
+            time.sleep(1)
+            GPIO.output(GPIO_LED_ORANGE, GPIO.HIGH)
+            GPIO.output(GPIO_LED_RED, GPIO.LOW)
+            time.sleep(1)
+            GPIO.output(GPIO_LED_RED, GPIO.HIGH)
+            time.sleep(1)
+        
+        for _ in range(3):
+            GPIO.output(GPIO_LED_GREEN, GPIO.LOW)
+            GPIO.output(GPIO_LED_ORANGE, GPIO.LOW)
+            GPIO.output(GPIO_LED_RED, GPIO.LOW)
+            time.sleep(0.5)
+            GPIO.output(GPIO_LED_GREEN, GPIO.HIGH)
+            GPIO.output(GPIO_LED_ORANGE, GPIO.HIGH)
+            GPIO.output(GPIO_LED_RED, GPIO.HIGH)
+            time.sleep(0.5)
 
-        # Output LED
-        if self.spot_price.price >= conf.PRICE_LIMIT_UPPER:
-            self.interface.output_led(interface.LED_RED, self.led_state)
-            self.interface.output_buzzer(self.led_state and self.enable_buzzer)
+    def toggle_buzzer(self):
+        self.enable_buzzer = not self.enable_buzzer
+
+        if not self.enable_buzzer:
+            GPIO.output(GPIO_BUZZER, GPIO.HIGH)
+    
+    def reset_leds(self):
+        GPIO.output(GPIO_BUZZER, GPIO.HIGH)
+        GPIO.output(GPIO_LED_GREEN, GPIO.HIGH)
+        GPIO.output(GPIO_LED_ORANGE, GPIO.HIGH)
+        GPIO.output(GPIO_LED_RED, GPIO.HIGH)
+    
+    def update_leds(self):
+        self.reset_leds()
+
+        if self.flick.spot_price >= conf.PRICE_LIMIT_UPPER:
+            state = GPIO.HIGH if self.led_state else GPIO.LOW
+
+            GPIO.output(GPIO_LED_RED, state)
+
+            if self.enable_buzzer:
+                GPIO.output(GPIO_BUZZER, state)
+
             self.led_state = not self.led_state
+
+        elif self.flick.spot_price < conf.PRICE_LIMIT_LOWER:
+            GPIO.output(GPIO_LED_GREEN, GPIO.HIGH)
+            
         else:
-            self.led_state = True
+            GPIO.output(GPIO_LED_ORANGE, GPIO.HIGH)
 
-            self.interface.output_led(interface.LED_GREEN if self.spot_price.price < conf.PRICE_LIMIT_LOWER
-                                      else interface.LED_ORANGE, self.led_state)
-
-    def update_spot_price(self):
-        self.spot_price.update()
-
-        str_price = "{:.2f}c".format(self.spot_price.price)
-        str_spot_price = "{:.2f}c".format(self.spot_price.spot_price)
-        l1 = STRING_PRICE.format(str_spot_price, str_price)
-
-        self.interface.lcd_out(l1, 1, CENTRE)
-
-    def update_weather(self):
+    def _update(self):
         self.weather.update()
+        self.flick.update()
 
-        l0 = self.now.strftime(STRING_TIME)
+        temperature = f"{self.weather.temperature}C"
+        humidity = f"{self.weather.humidity}%"
+        rainfall = f"{self.weather.rainfall}mm"
+        wind_gust = f"{self.weather.wind_speed_gust:.0f}km/h"
+        wind_mean = f"{self.weather.wind_speed_mean:0f}km/h"
+        wind_dir = self.weather.wind_dir
 
-        str_temp = "{}C".format(self.weather.temperature)
-        str_humidity = "{}%".format(self.weather.humidity)
-        str_rainfall = "{}mm".format(self.weather.rainfall)
-        l2 = STRING_TEMPERATURE.format(str_temp, str_humidity, str_rainfall)
+        price = f"{self.flick.price:.2f}c"
+        spot_price = f"{self.flick.spot_price:.2f}c"
 
-        str_wind_gust = "{}km/h".format(round(self.weather.wind_speed_gust))
-        str_wind_mean = "{}km/h".format(round(self.weather.wind_speed_mean))
-        str_wind_dir = self.weather.wind_dir
-        l3 = STRING_WIND.format(str_wind_gust, str_wind_mean, str_wind_dir)
+        lines = [
+            datetime.datetime.now().strftime(TIME_FORMAT),
+            f"{price:<10}{spot_price:>10}",
+            f"{temperature:<9}{humidity:<5}{rainfall:>6}",
+            f"{wind_gust:<9}{wind_mean:<7}{wind_dir:>4}",
+        ]
 
-        self.interface.lcd_out(l0, 0, CENTRE)
-        self.interface.lcd_out(l2, 2, CENTRE)
-        self.interface.lcd_out(l3, 3, CENTRE)
-
-
+        for i in range(len(lines)):
+            self.lcd.string_out(lines[i], i, justify="center")
+        
+    def update(self):
+        thr = threading.Thread(target=self._update)
+        thr.start()
+    
     def mainloop(self):
-        while self.is_running:
-            self.now = datetime.datetime.now()
-            t = time.time()
+        self.running = True
 
-            if t > self.next_update:
-                self.update_interface()
-                self.next_update = t + conf.ALERT_DURATION
-
-            elif self.now > self.weather.next_update:
-                self.update_weather()
-
-            elif self.now > self.spot_price.next_update:
-                self.update_spot_price()
-
-            time.sleep(1 / UPDATE_FREQUENCY)
+        while self.running:
+            schedule.run_pending()
+            self.update_leds()
+            time.sleep(1)
 
 
 def main():
-    mon = Monitor()
-    mon.mainloop()
+    Monitor().mainloop()
+
 
 if __name__ == '__main__':
     main()

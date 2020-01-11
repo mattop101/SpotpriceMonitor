@@ -108,16 +108,18 @@ class Monitor(object):
         self.reset_leds()
 
         if self.flick.spot_price >= conf.PRICE_LIMIT_UPPER:
-            GPIO.output(GPIO_LED_RED, GPIO.HIGH if self.led_state else GPIO.LOW)
+            GPIO.output(GPIO_LED_RED, GPIO.LOW if self.led_state else GPIO.HIGH)
             self.led_state = not self.led_state
         elif self.flick.spot_price < conf.PRICE_LIMIT_LOWER:
-            GPIO.output(GPIO_LED_GREEN, GPIO.HIGH)
+            GPIO.output(GPIO_LED_GREEN, GPIO.LOW)
         else:
-            GPIO.output(GPIO_LED_ORANGE, GPIO.HIGH)
+            GPIO.output(GPIO_LED_ORANGE, GPIO.LOW)
 
     def _update(self):
         self.weather.update()
         self.flick.update()
+
+        date_time = datetime.datetime.now().strftime(TIME_FORMAT)
 
         temperature = "{}C".format(self.weather.temperature)
         humidity = "{}%".format(self.weather.humidity)
@@ -130,7 +132,7 @@ class Monitor(object):
         spot_price = "{:.2f}c".format(self.flick.spot_price)
 
         lines = [
-            datetime.datetime.now().strftime(TIME_FORMAT),
+            "{:^20}".format(date_time),
             "{:<10}{:>10}".format(price, spot_price),
             "{:<9}{:<5}{:>6}".format(temperature, humidity, rainfall),
             "{:<9}{:<7}{:>4}".format(wind_gust, wind_mean, wind_dir),

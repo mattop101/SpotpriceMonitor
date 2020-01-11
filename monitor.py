@@ -6,6 +6,7 @@ __author__ = "Matthew Northcott"
 
 
 # IMPORTS
+import os
 import time
 import datetime
 import threading
@@ -28,7 +29,9 @@ TIME_FORMAT = "%d %b %H:%M"
 FILE_CONFIG = "spotprice.cfg"
 
 # MAIN BODY
-conf = SourceFileLoader("conf", FILE_CONFIG).load_module()
+base_dir = os.path.dirname(os.path.abspath(__file__))
+conf_path = os.path.join(base_dir, FILE_CONFIG)
+conf = SourceFileLoader("conf", conf_path).load_module()
 
 
 class Monitor(object):

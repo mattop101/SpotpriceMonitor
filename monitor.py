@@ -7,6 +7,7 @@ __author__ = "Matthew Northcott"
 
 # IMPORTS
 import time
+import datetime
 import threading
 import schedule
 
@@ -59,7 +60,16 @@ class Monitor(object):
         schedule.every().hour.at(":41").do(self.update)
         schedule.every().hour.at(":51").do(self.update)
     
+    def log(self, message):
+        if not conf.DEBUG:
+            return
+        dt = datetime.datetime.now().strftime("%d %b %Y %R")
+        print("[{}] {}".format(dt, message))
+
+    
     def startup(self):
+        self.log("Performing startup sequence...")
+
         self.lcd.string_out("Spotprice Monitor", 1, justify="center")
         self.lcd.string_out("v3 (Dec 2019)", 2, justify="center")
 
@@ -67,25 +77,27 @@ class Monitor(object):
 
         for _ in range(3):
             GPIO.output(GPIO_LED_GREEN, GPIO.LOW)
-            time.sleep(1)
+            time.sleep(0.4)
             GPIO.output(GPIO_LED_GREEN, GPIO.HIGH)
             GPIO.output(GPIO_LED_ORANGE, GPIO.LOW)
-            time.sleep(1)
+            time.sleep(0.4)
             GPIO.output(GPIO_LED_ORANGE, GPIO.HIGH)
             GPIO.output(GPIO_LED_RED, GPIO.LOW)
-            time.sleep(1)
+            time.sleep(0.4)
             GPIO.output(GPIO_LED_RED, GPIO.HIGH)
-            time.sleep(1)
+            time.sleep(0.4)
         
         for _ in range(3):
             GPIO.output(GPIO_LED_GREEN, GPIO.LOW)
             GPIO.output(GPIO_LED_ORANGE, GPIO.LOW)
             GPIO.output(GPIO_LED_RED, GPIO.LOW)
-            time.sleep(0.5)
+            time.sleep(0.2)
             GPIO.output(GPIO_LED_GREEN, GPIO.HIGH)
             GPIO.output(GPIO_LED_ORANGE, GPIO.HIGH)
             GPIO.output(GPIO_LED_RED, GPIO.HIGH)
-            time.sleep(0.5)
+            time.sleep(0.2)
+
+        self.log("Completed startup sequence.")
     
     def reset_leds(self):
         GPIO.output(GPIO_LED_GREEN, GPIO.HIGH)
@@ -124,10 +136,16 @@ class Monitor(object):
             "{:<9}{:<7}{:>4}".format(wind_gust, wind_mean, wind_dir),
         ]
 
+        self.log("Outputting to LCD:\n" + '\n'.join(line for line in lines))
+
         for i in range(len(lines)):
             self.lcd.string_out(lines[i], i, justify="center")
         
+        self.log("Update complete.")
+        
     def update(self):
+        self.log("Performing update...")
+
         thr = threading.Thread(target=self._update)
         thr.start()
     

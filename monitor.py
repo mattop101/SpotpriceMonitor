@@ -36,18 +36,21 @@ class Monitor(object):
 
     def __init__(self):
         # GPIO initialisation
-        GPIO.setmode(rpi.BCM)
+        GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(GPIO_LED_GREEN, GPIO.OUT)
         GPIO.setup(GPIO_LED_ORANGE, GPIO.OUT)
         GPIO.setup(GPIO_LED_RED, GPIO.OUT)
         GPIO.setup(GPIO_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
+        self.lcd = lcd.LCD()
+
         self.startup()
 
-        self.lcd = lcd.LCD()
         self.weather = weather.WeatherData()
         self.flick = flickuser.FlickUser(conf.FLICK_USERNAME, conf.FLICK_PASSWORD)
+
+        self._update()
 
         schedule.every().hour.at(":01").do(self.update)
         schedule.every().hour.at(":11").do(self.update)

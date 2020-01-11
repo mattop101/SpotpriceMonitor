@@ -123,7 +123,7 @@ class Monitor(object):
         humidity = "{}%".format(self.weather.humidity)
         rainfall = "{}mm".format(self.weather.rainfall)
         wind_gust = "{:.0f}km/h".format(self.weather.wind_speed_gust)
-        wind_mean = "{:0f}km/h".format(self.weather.wind_speed_mean)
+        wind_mean = "{:.0f}km/h".format(self.weather.wind_speed_mean)
         wind_dir = self.weather.wind_dir
 
         price = "{:.2f}c".format(self.flick.price)
